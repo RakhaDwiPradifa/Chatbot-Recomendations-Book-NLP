@@ -5,64 +5,311 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Chatbot Rekomendasi Buku</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
+    
+    body {
+      font-family: 'Poppins', sans-serif;
+    }
+    
+    .animate-fade-in {
+      animation: fadeIn 0.5s ease-in;
+    }
+    
+    .animate-slide-up {
+      animation: slideUp 0.3s ease-out;
+    }
+    
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+    
+    @keyframes slideUp {
+      from { transform: translateY(20px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+
+    .glass-effect {
+      background: rgba(255, 255, 255, 0.05);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .gradient-bg {
+      background: linear-gradient(135deg, #1a237e 0%, #0d47a1 100%);
+    }
+  </style>
   <script>
     async function kirimPesan() {
-      const minat = document.getElementById("input").value;
-      const res = await fetch("/saran-buku", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ minat })
-      });
-      const data = await res.json();
+      const input = document.getElementById("input");
+      const minat = input.value.trim();
+      
+      if (!minat) return;
+      
       const kotakChat = document.getElementById("chat");
+      input.disabled = true;
+      document.getElementById("sendBtn").disabled = true;
 
-      kotakChat.innerHTML += `
-        <div class="text-right mb-2">
-          <div class="inline-block bg-gray-800 text-white px-4 py-2 rounded-lg max-w-md">${minat}</div>
+      // Menambahkan pesan user
+      const userMessage = document.createElement('div');
+      userMessage.className = 'text-right mb-4 animate-fade-in';
+      userMessage.innerHTML = `
+        <div class="inline-block bg-blue-600 text-white px-6 py-3 rounded-2xl rounded-tr-sm max-w-md shadow-lg animate-slide-up">
+          ${minat}
         </div>`;
+      kotakChat.appendChild(userMessage);
 
-      if (data.buku && data.buku.length > 0) {
-        kotakChat.innerHTML += `
-          <div class="text-left mb-2">
-            <div class="inline-block bg-gray-200 text-gray-800 px-4 py-2 rounded-lg max-w-md">${data.message}</div>
-          </div>`;
-        data.buku.forEach(b => {
-          kotakChat.innerHTML += `
-            <div class="text-left mb-1">
-              <div class="inline-block bg-gray-100 text-gray-700 px-3 py-1 rounded max-w-md shadow">
-                📚 <strong>${b.judul}</strong> oleh ${b.penulis}
-              </div>
-            </div>`;
+      try {
+        const res = await fetch("/saran-buku", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ minat })
         });
-      } else {
-        kotakChat.innerHTML += `
-          <div class="text-left mb-2">
-            <div class="inline-block bg-gray-200 text-gray-800 px-4 py-2 rounded-lg max-w-md">${data.message || data.error}</div>
+        const data = await res.json();
+
+        if (data.buku && data.buku.length > 0) {
+          // Pesan bot dengan animasi ketikan
+          const botMessage = document.createElement('div');
+          botMessage.className = 'text-left mb-4 animate-fade-in';
+          
+          // Tampilkan pesan utama dengan efek mengetik
+          const messageContainer = document.createElement('div');
+          messageContainer.className = 'inline-block glass-effect text-white px-6 py-3 rounded-2xl rounded-tl-sm max-w-md shadow-lg animate-slide-up';
+          botMessage.appendChild(messageContainer);
+          
+          let i = 0;
+          const text = data.message;
+          const typeWriter = () => {
+            if (i < text.length) {
+              messageContainer.innerHTML += text.charAt(i);
+              i++;
+              setTimeout(typeWriter, 30);
+            } else {
+              // Setelah pesan utama selesai, tampilkan analisis NLP
+              if (data.nlp_analysis) {
+                const nlpContainer = document.createElement('div');
+                nlpContainer.className = 'mt-4 space-y-3';
+                
+                // Tampilkan fakta-fakta
+                if (data.nlp_analysis.facts && data.nlp_analysis.facts.length > 0) {
+                  const factsDiv = document.createElement('div');
+                  factsDiv.className = 'space-y-2 mb-3';
+                  data.nlp_analysis.facts.forEach(fact => {
+                    factsDiv.innerHTML += `
+                      <div class="glass-effect text-blue-200 px-4 py-2 rounded-xl text-sm">
+                        ${fact}
+                      </div>`;
+                  });
+                  nlpContainer.appendChild(factsDiv);
+                }
+
+                // Tampilkan deskripsi proses NLP
+                const processDiv = document.createElement('div');
+                processDiv.className = 'glass-effect p-4 rounded-xl space-y-2';
+                processDiv.innerHTML = `
+                  <div class="text-blue-300 font-semibold mb-3">🔍 Proses Analisis NLP:</div>
+                  ${Object.entries(data.nlp_analysis.process_descriptions).map(([key, desc]) => `
+                    <div class="text-gray-300 text-sm">
+                      <span class="text-blue-200">➡️ ${key}:</span> ${desc}
+                    </div>
+                  `).join('')}
+                `;
+                nlpContainer.appendChild(processDiv);
+
+                // Tampilkan hasil analisis
+                const analysisDiv = document.createElement('div');
+                analysisDiv.className = 'glass-effect p-4 rounded-xl space-y-3';
+                analysisDiv.innerHTML = `
+                  <div class="text-blue-300 font-semibold mb-2">📝 Hasil Analisis:</div>
+                  
+                  <div class="space-y-2">
+                    <div class="text-gray-300">
+                      <span class="text-blue-200">Tokens:</span>
+                      <div class="flex flex-wrap gap-1 mt-1">
+                        ${data.nlp_analysis.tokens.map(token => `
+                          <div class="group relative">
+                            <span class="bg-blue-900/30 px-2 py-1 rounded-lg text-xs cursor-help">${token.text}</span>
+                            <div class="absolute bottom-full left-0 mb-2 hidden group-hover:block bg-black/90 text-white text-xs p-2 rounded">
+                              Jenis: ${token.pos}<br>
+                              ${token.is_stop ? 'Stopword' : 'Bukan stopword'}
+                            </div>
+                          </div>
+                        `).join('')}
+                      </div>
+                    </div>
+
+                    <div class="text-gray-300">
+                      <span class="text-blue-200">Setelah stopword removal:</span>
+                      <div class="flex flex-wrap gap-1 mt-1">
+                        ${data.nlp_analysis.cleaned_text.split(' ').map(word =>
+                          `<span class="bg-blue-900/30 px-2 py-1 rounded-lg text-xs">${word}</span>`
+                        ).join('')}
+                      </div>
+                    </div>
+
+                    <div class="text-gray-300">
+                      <span class="text-blue-200">Hasil stemming:</span>
+                      <div class="flex flex-wrap gap-1 mt-1">
+                        ${data.nlp_analysis.stemmed_words.map(word =>
+                          `<span class="bg-blue-900/30 px-2 py-1 rounded-lg text-xs">${word}</span>`
+                        ).join('')}
+                      </div>
+                    </div>
+
+                    <div class="text-gray-300">
+                      <span class="text-blue-200">Hasil lemmatization:</span>
+                      <div class="flex flex-wrap gap-1 mt-1">
+                        ${data.nlp_analysis.lemmas.map(lemma => `
+                          <div class="group relative">
+                            <span class="bg-blue-900/30 px-2 py-1 rounded-lg text-xs cursor-help">${lemma.lemma}</span>
+                            <div class="absolute bottom-full left-0 mb-2 hidden group-hover:block bg-black/90 text-white text-xs p-2 rounded">
+                              Asli: ${lemma.original}<br>
+                              Jenis: ${lemma.pos}
+                            </div>
+                          </div>
+                        `).join('')}
+                      </div>
+                    </div>
+
+                    ${data.nlp_analysis.detected_phrases.length > 0 ? `
+                      <div class="text-gray-300">
+                        <span class="text-blue-200">Frasa terdeteksi:</span>
+                        <div class="flex flex-wrap gap-1 mt-1">
+                          ${data.nlp_analysis.detected_phrases.map(phrase =>
+                            `<span class="bg-blue-900/30 px-2 py-1 rounded-lg text-xs">${phrase}</span>`
+                          ).join('')}
+                        </div>
+                      </div>
+                    ` : ''}
+                  </div>
+                `;
+                nlpContainer.appendChild(analysisDiv);
+                
+                messageContainer.appendChild(nlpContainer);
+              }
+            }
+          };
+          typeWriter();
+          
+          kotakChat.appendChild(botMessage);
+
+          // Tambahkan jeda sebelum menampilkan buku
+          setTimeout(() => {
+            // Daftar buku
+            data.buku.forEach((b, index) => {
+              setTimeout(() => {
+                const bookCard = document.createElement('div');
+                bookCard.className = 'text-left mb-3 animate-fade-in';
+                let bookContent = `
+                  <div class="inline-block glass-effect text-white px-6 py-4 rounded-2xl max-w-md shadow-lg hover:scale-102 transition-transform duration-200 animate-slide-up">
+                    <div class="flex items-start gap-3">
+                      <div class="text-3xl">📚</div>
+                      <div class="flex-1">
+                        <div class="font-semibold text-blue-300">${b.judul}</div>
+                        <div class="text-sm text-gray-300">oleh ${b.penulis}</div>`;
+                
+                // Tambahkan tahun publikasi jika tersedia
+                if (b.first_publish_year) {
+                  bookContent += `<div class="text-xs text-gray-400 mt-1">Tahun: ${b.first_publish_year}</div>`;
+                }
+                
+                // Tambahkan subjek jika tersedia
+                if (b.subject && b.subject.length > 0) {
+                  bookContent += `
+                    <div class="flex flex-wrap gap-2 mt-2">
+                      ${b.subject.map(s => `<span class="text-xs bg-blue-900/50 px-2 py-1 rounded-full">${s}</span>`).join('')}
+                    </div>`;
+                }
+                
+                // Tambahkan gambar sampul jika tersedia
+                if (b.cover_url) {
+                  bookContent += `
+                    <div class="mt-2">
+                      <img src="${b.cover_url}" alt="Sampul ${b.judul}" class="w-20 h-auto rounded-lg shadow-md" />
+                    </div>`;
+                }
+                
+                bookContent += `
+                      </div>
+                    </div>
+                  </div>`;
+                
+                bookCard.innerHTML = bookContent;
+                kotakChat.appendChild(bookCard);
+                
+                // Auto-scroll setelah setiap buku ditambahkan
+                kotakChat.scrollTop = kotakChat.scrollHeight;
+              }, index * 300); // Tampilkan buku dengan jeda 300ms
+            });
+          }, 1000); // Tunggu 1 detik setelah pesan selesai diketik
+        } else {
+          const errorMessage = document.createElement('div');
+          errorMessage.className = 'text-left mb-4 animate-fade-in';
+          errorMessage.innerHTML = `
+            <div class="inline-block glass-effect text-white px-6 py-3 rounded-2xl rounded-tl-sm max-w-md shadow-lg animate-slide-up">
+              ${data.message || data.error}
+            </div>`;
+          kotakChat.appendChild(errorMessage);
+        }
+      } catch (error) {
+        const errorMessage = document.createElement('div');
+        errorMessage.className = 'text-left mb-4 animate-fade-in';
+        errorMessage.innerHTML = `
+          <div class="inline-block glass-effect text-red-300 px-6 py-3 rounded-2xl rounded-tl-sm max-w-md shadow-lg animate-slide-up">
+            Maaf, terjadi kesalahan. Silakan coba lagi.
           </div>`;
+        kotakChat.appendChild(errorMessage);
       }
 
       kotakChat.scrollTop = kotakChat.scrollHeight;
-      document.getElementById("input").value = "";
+      input.value = "";
+      input.disabled = false;
+      document.getElementById("sendBtn").disabled = false;
+      input.focus();
     }
+
+    // Handle Enter key
+    document.addEventListener('DOMContentLoaded', () => {
+      const input = document.getElementById('input');
+      input.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+          kirimPesan();
+        }
+      });
+    });
   </script>
 </head>
-<body class="bg-gray-900 text-white font-sans min-h-screen flex flex-col items-center justify-center px-4">
-  <div class="w-full max-w-2xl">
-    <h1 class="text-3xl font-bold mb-4 text-center text-white">📖 Chatbot Rekomendasi Buku</h1>
-    <div id="chat" class="bg-gray-800 rounded-lg p-4 h-96 overflow-y-auto mb-4 shadow-inner"></div>
-    <div class="flex gap-2">
-      <input
-        id="input"
-        type="text"
-        placeholder="Ceritakan minatmu..."
-        class="flex-1 p-3 rounded-lg bg-gray-700 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-500"
-      />
-      <button
-        onclick="kirimPesan()"
-        class="bg-gray-600 hover:bg-gray-500 text-white font-semibold px-4 py-2 rounded-lg transition duration-200"
-      >
-        Kirim
-      </button>
+<body class="gradient-bg text-white font-sans min-h-screen flex flex-col items-center justify-center p-4 md:p-8">
+  <div class="w-full max-w-3xl animate-fade-in">
+    <div class="text-center mb-8">
+      <h1 class="text-4xl font-bold mb-2 text-white flex items-center justify-center gap-3">
+        <span class="text-5xl">📚</span>
+        <span>Chatbot Rekomendasi Buku</span>
+      </h1>
+      <p class="text-blue-200 text-lg">Temukan buku yang sesuai dengan minatmu</p>
+    </div>
+    
+    <div class="glass-effect rounded-3xl p-6 shadow-2xl">
+      <div id="chat" class="h-[450px] overflow-y-auto mb-6 p-4 space-y-4"></div>
+      
+      <div class="flex gap-3">
+        <input
+          id="input"
+          type="text"
+          placeholder="Ceritakan minatmu..."
+          class="flex-1 p-4 rounded-2xl bg-white/10 text-white placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all duration-200"
+        />
+        <button
+          id="sendBtn"
+          onclick="kirimPesan()"
+          class="bg-blue-600 hover:bg-blue-500 text-white font-semibold px-6 py-4 rounded-2xl transition duration-200 flex items-center gap-2 shadow-lg"
+        >
+          <span>Kirim</span>
+          <i class="fas fa-paper-plane"></i>
+        </button>
+      </div>
     </div>
   </div>
 </body>
